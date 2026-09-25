@@ -36,20 +36,26 @@ export default function AdminPage() {
 
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("title", title);
+    formData.append("description", desc);
 
     const res = await fetch("/api/upload", { method: "POST", body: formData });
-    const data = await res.json();
-
-    // Post save logic
-    alert("Uploaded successfully!");
+    if (res.ok) {
+      alert("File successfully uploaded & saved!");
+      setTitle("");
+      setDesc("");
+      setFile(null);
+    } else {
+      alert("Upload failed!");
+    }
     setLoading(false);
   };
 
   return (
     <form onSubmit={handleUpload} style={{ padding: 40, maxWidth: 500, margin: "auto" }}>
       <h2>Upload New File</h2>
-      <input type="text" placeholder="Title" onChange={(e) => setTitle(e.target.value)} required style={{ width: "100%", marginBottom: 10, padding: 8 }} />
-      <textarea placeholder="Description" onChange={(e) => setDesc(e.target.value)} required style={{ width: "100%", marginBottom: 10, padding: 8 }} />
+      <input type="text" placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} required style={{ width: "100%", marginBottom: 10, padding: 8 }} />
+      <textarea placeholder="Description" value={desc} onChange={(e) => setDesc(e.target.value)} required style={{ width: "100%", marginBottom: 10, padding: 8 }} />
       <input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} required style={{ marginBottom: 10 }} />
       <button type="submit" disabled={loading} style={{ width: "100%", padding: 10, background: "green", color: "white" }}>
         {loading ? "Uploading..." : "Upload"}
