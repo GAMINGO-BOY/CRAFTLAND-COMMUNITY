@@ -1,7 +1,6 @@
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 generator client {
@@ -9,9 +8,21 @@ generator client {
 }
 
 model Post {
-  id          String   @id @default(cuid())
-  title       String
-  description String
-  fileUrl     String
-  createdAt   DateTime @default(now())
+  id        String    @id @default(cuid())
+  title     String
+  isPinned  Boolean   @default(false)
+  pinnedAt  DateTime? 
+  blocks    Json      // Text, Image, Audio, Video, Poll, Code blocks yahan save honge
+  comments  Comment[]
+  createdAt DateTime  @default(now())
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      String
+  text      String
+  parentId  String?  // Nested replies ke liye
+  createdAt DateTime @default(now())
 }
