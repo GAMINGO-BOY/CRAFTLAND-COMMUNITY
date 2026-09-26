@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { v2 as cloudinary } from "cloudinary";
 import { PrismaClient } from "@prisma/client";
+import { v2 as cloudinary } from "cloudinary";
 
 const prisma = new PrismaClient();
 
@@ -14,19 +14,23 @@ export async function POST(req: Request) {
   try {
     const formData = await req.formData();
     const title = formData.get("title") as string;
-    const blocksJson = formData.get("blocks") as string;
-    let blocks = JSON.parse(blocksJson || "[]");
+    const blocksRaw = formData.get("blocks") as string;
 
-    // Process all media files present in blocks
+    if (!title || !blocksRaw) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    let blocks = JSON.parse(blocksRaw);
+
     for (let i = 0; i < blocks.length; i++) {
-      const block = blocks[i];
-      if (["image", "video", "audio"].includes(block.type) && formData.has(`file_${i}`)) {
-        const file = formData.get(`file_${i}`) as File;
+      const fileKey = `file_${i}`;
+      const file = formData.get(fileKey) as File | null;
+
+      if (file) {
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
 
-        // Upload media file to Cloudinary
-        const uploadResult: any = await new Promise((resolve, reject) => {
+        const uploadResult = await new Promise<any>((resolve, reject) => {
           cloudinary.uploader.upload_stream(
             { resource_type: "auto" },
             (error, result) => {
@@ -36,22 +40,20 @@ export async function POST(req: Request) {
           ).end(buffer);
         });
 
-        // Replace raw file reference with Cloudinary secure URL
-        block.content = uploadResult.secure_url;
+        blocks[i].content = uploadResult.secure_url;
       }
     }
 
-    // Save to Supabase via Prisma
-    const newPost = await prisma.post.create({
+    const post = await prisma.post.create({
       data: {
-        title: title || "Untitled Post",
-        blocks: blocks,
+        title,
+        blocks,
       },
     });
 
-    return NextResponse.json({ success: true, post: newPost });
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: "Post creation failed" }, { status: 500 });
+    return NextResponse.json({ success: true, post });
+  } catch (error: any) {
+    console.error("Upload Error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
