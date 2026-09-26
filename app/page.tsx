@@ -148,7 +148,6 @@ export default function Home() {
                     })}
                 </div>
 
-                {/* View Comments Plus/Expand Toggle */}
                 <button
                   onClick={() => toggleComments(post.id)}
                   className="w-full bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 font-medium text-xs px-4 py-2.5 rounded-lg flex justify-between items-center transition"
