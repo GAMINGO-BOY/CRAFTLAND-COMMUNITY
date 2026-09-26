@@ -17,7 +17,7 @@ export async function POST(req: Request) {
     const blocksRaw = formData.get("blocks") as string;
 
     if (!title || !blocksRaw) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+      return NextResponse.json({ error: "Title and blocks are required" }, { status: 400 });
     }
 
     let blocks = JSON.parse(blocksRaw);
@@ -26,7 +26,12 @@ export async function POST(req: Request) {
       const fileKey = `file_${i}`;
       const file = formData.get(fileKey) as File | null;
 
-      if (file) {
+      // Only attempt Cloudinary upload if a real file is attached
+      if (file && file.size > 0) {
+        if (!process.env.CLOUDINARY_CLOUD_NAME) {
+          throw new Error("Cloudinary Environment Variables are missing on Vercel");
+        }
+
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
 
@@ -53,7 +58,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, post });
   } catch (error: any) {
-    console.error("Upload Error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Upload API Error:", error);
+    return NextResponse.json({ error: error.message || "Upload Failed" }, { status: 500 });
   }
 }
