@@ -13,36 +13,45 @@ cloudinary.config({
 export async function POST(req: Request) {
   try {
     const formData = await req.formData();
-    const file = formData.get("file") as File;
     const title = formData.get("title") as string;
-    const description = formData.get("description") as string;
+    const blocksJson = formData.get("blocks") as string;
+    let blocks = JSON.parse(blocksJson || "[]");
 
-    if (!file) {
-      return NextResponse.json({ error: "No file provided" }, { status: 400 });
+    // Process all media files present in blocks
+    for (let i = 0; i < blocks.length; i++) {
+      const block = blocks[i];
+      if (["image", "video", "audio"].includes(block.type) && formData.has(`file_${i}`)) {
+        const file = formData.get(`file_${i}`) as File;
+        const bytes = await file.arrayBuffer();
+        const buffer = Buffer.from(bytes);
+
+        // Upload media file to Cloudinary
+        const uploadResult: any = await new Promise((resolve, reject) => {
+          cloudinary.uploader.upload_stream(
+            { resource_type: "auto" },
+            (error, result) => {
+              if (error) reject(error);
+              else resolve(result);
+            }
+          ).end(buffer);
+        });
+
+        // Replace raw file reference with Cloudinary secure URL
+        block.content = uploadResult.secure_url;
+      }
     }
 
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
-    // 1. Cloudinary par Upload
-    const uploadResult: any = await new Promise((resolve, reject) => {
-      cloudinary.uploader.upload_stream({ resource_type: "auto" }, (error, result) => {
-        if (error) reject(error);
-        else resolve(result);
-      }).end(buffer);
-    });
-
-    // 2. Database (Supabase) me Save
+    // Save to Supabase via Prisma
     const newPost = await prisma.post.create({
       data: {
-        title: title || "Untitled File",
-        description: description || "",
-        fileUrl: uploadResult.secure_url,
+        title: title || "Untitled Post",
+        blocks: blocks,
       },
     });
 
     return NextResponse.json({ success: true, post: newPost });
   } catch (error) {
-    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
+    console.error(error);
+    return NextResponse.json({ error: "Post creation failed" }, { status: 500 });
   }
 }
